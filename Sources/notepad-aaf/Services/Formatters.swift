@@ -3,6 +3,7 @@ import Foundation
 enum FormatterError: LocalizedError {
     case unsupportedMode
     case yamlUnsafeRewrite
+    case nginxMalformed(message: String, line: Int)
 
     var errorDescription: String? {
         switch self {
@@ -10,6 +11,8 @@ enum FormatterError: LocalizedError {
             return "Formatting is not available for this language mode."
         case .yamlUnsafeRewrite:
             return "YAML rewrite may be structurally unsafe. Confirm before applying."
+        case let .nginxMalformed(message, line):
+            return "NGINX config can't be re-indented: \(message) (line \(line))."
         }
     }
 }
@@ -25,9 +28,20 @@ struct Formatters {
             return try formatYAMLSafeReindent(text: text)
         case .sql:
             return formatSQL(text: text, option: option)
+        case .nginx:
+            return try formatNginx(text: text)
         case .plainText:
             throw FormatterError.unsupportedMode
         }
+    }
+
+    /// Re-indent an nginx config. A config that doesn't lex would come back
+    /// unchanged, which reads as "the button did nothing" — surface it instead.
+    private func formatNginx(text: String) throws -> String {
+        if let error = NginxFormatter.structuralError(in: text) {
+            throw FormatterError.nginxMalformed(message: error.message, line: error.line)
+        }
+        return NginxFormatter.pretty(text)
     }
 
     private func formatSQL(text: String, option: FormatOption) -> String {
@@ -76,6 +90,7 @@ enum FormatOption: String, CaseIterable, Identifiable {
     case yamlSafeReindent
     case sqlPretty
     case sqlCompact
+    case nginxPretty
 
     var id: String { rawValue }
 
@@ -88,6 +103,7 @@ enum FormatOption: String, CaseIterable, Identifiable {
         case .yamlSafeReindent: return "YAML: Safe re-indent"
         case .sqlPretty: return "SQL: Format"
         case .sqlCompact: return "SQL: Single line"
+        case .nginxPretty: return "NGINX: Re-indent"
         }
     }
 }

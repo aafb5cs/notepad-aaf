@@ -12,6 +12,7 @@ struct EditorToolbar: View {
         case .xml: return "Format XML"
         case .yaml: return "Re-indent YAML"
         case .sql: return "Format SQL"
+        case .nginx: return "Re-indent NGINX"
         default: return "Format"
         }
     }
@@ -38,6 +39,7 @@ struct EditorToolbar: View {
                 Button("YAML: Safe re-indent") { workspace.formatSelected(primary: true, explicitOption: .yamlSafeReindent) }
                 Button("SQL: Format") { workspace.formatSelected(primary: false, explicitOption: .sqlPretty) }
                 Button("SQL: Single line") { workspace.formatSelected(primary: false, explicitOption: .sqlCompact) }
+                Button("NGINX: Re-indent") { workspace.formatSelected(primary: false, explicitOption: .nginxPretty) }
                 Divider()
                 Button("URL Decode") { workspace.urlDecode() }
                 Button("URL Encode") { workspace.urlEncode() }

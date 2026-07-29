@@ -560,6 +560,7 @@ final class EditorWorkspace: ObservableObject {
         case .xml: return .xmlPretty
         case .yaml: return .yamlSafeReindent
         case .sql: return .sqlPretty
+        case .nginx: return .nginxPretty
         case .plainText: return .auto
         }
     }
@@ -582,6 +583,11 @@ final class EditorWorkspace: ObservableObject {
         if ["SELECT", "INSERT", "UPDATE", "DELETE", "CREATE", "ALTER", "DROP", "WITH", "TRUNCATE"]
             .contains(firstWord) {
             return .sql
+        }
+        // Needs a block directive *and* a terminated directive, so `{ }`-heavy
+        // text that isn't a config doesn't get reformatted as one.
+        if NginxFormatter.looksLikeConfig(trimmed) {
+            return .nginx
         }
         return nil
     }

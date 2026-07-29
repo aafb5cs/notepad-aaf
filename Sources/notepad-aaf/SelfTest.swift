@@ -134,6 +134,64 @@ enum SelfTest {
         check("sql validator ignores -- and quotes",
               validators.validate(text: "select '(' as x -- ) note\nfrom t", mode: .sql).isValid)
 
+        print("== NGINX formatter ==")
+        let messyConf = """
+        http{server{listen 80;server_name example.com www.example.com;
+        location /api/ { proxy_pass http://backend; proxy_set_header Host $host; }
+        }}
+        """
+        let conf = NginxFormatter.pretty(messyConf)
+        check("nginx one directive per line", conf.contains("\n        listen 80;"))
+        check("nginx indents nested blocks", conf.contains("http {\n    server {"))
+        check("nginx block header keeps its arguments", conf.contains("location /api/ {"))
+        check("nginx closes blocks at the outer indent", conf.contains("\n        }\n    }\n}"))
+        check("nginx keeps variables verbatim", conf.contains("proxy_set_header Host $host;"))
+
+        let commented = NginxFormatter.pretty("""
+        # top comment
+        events {
+            worker_connections  1024;   # tuned
+
+            use epoll;
+        }
+        """)
+        check("nginx keeps a leading comment on its own line", commented.hasPrefix("# top comment\n"))
+        check("nginx keeps a trailing comment on its directive",
+              commented.contains("worker_connections 1024;  # tuned"))
+        check("nginx preserves a blank line", commented.contains("# tuned\n\n    use epoll;"))
+
+        let quoted = NginxFormatter.pretty("""
+        location ~ ^/x { add_header X-Note "a; b { c }" always; }
+        """)
+        check("nginx string literal passes through verbatim", quoted.contains("\"a; b { c }\""))
+        check("nginx regex location survives", quoted.contains("location ~ ^/x {"))
+        check("nginx idempotent", NginxFormatter.pretty(conf) == conf)
+
+        check("nginx valid config", validators.validate(text: conf, mode: .nginx).isValid)
+        let missingSemi = validators.validate(text: "server {\n  listen 80\n}", mode: .nginx)
+        check("nginx flags a missing ';'", !missingSemi.isValid && missingSemi.line == 2)
+        let unbalanced = validators.validate(text: "http {\n  server {\n    listen 80;\n  }\n", mode: .nginx)
+        check("nginx flags an unclosed block", !unbalanced.isValid && unbalanced.line == 1)
+        check("nginx flags a stray '}'",
+              !validators.validate(text: "listen 80;\n}", mode: .nginx).isValid)
+        check("nginx flags an unterminated quote",
+              !validators.validate(text: "server_name \"example.com;", mode: .nginx).isValid)
+        check("nginx ignores braces inside comments",
+              validators.validate(text: "server { # } not a brace\n  listen 80;\n}", mode: .nginx).isValid)
+        do {
+            _ = try formatters.format("server {\n  listen 80\n}", mode: .nginx, option: .nginxPretty)
+            check("nginx format rejects malformed input", false)
+        } catch { check("nginx format rejects malformed input", error is FormatterError) }
+
+        check("nginx inferred from nginx.conf",
+              LanguageMode.inferred(from: URL(fileURLWithPath: "/etc/nginx/nginx.conf")) == .nginx)
+        check("nginx inferred from a .conf site file",
+              LanguageMode.inferred(from: URL(fileURLWithPath: "/etc/nginx/sites-enabled/site.conf")) == .nginx)
+        check("nginx sniffed from unlabelled text", NginxFormatter.looksLikeConfig(messyConf))
+        check("nginx sniff rejects JSON", !NginxFormatter.looksLikeConfig("{\"a\": 1}"))
+        check("nginx sniff rejects code-ish text",
+              !NginxFormatter.looksLikeConfig("func main() { print(1); }"))
+
         print("== LLM config ==")
         // Blank model / base URL fall back to provider defaults; a set value wins.
         let anthDefault = LLMConfig(provider: .anthropic, apiKey: "  k  ", model: "", baseURL: "")

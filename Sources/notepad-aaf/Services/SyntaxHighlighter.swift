@@ -61,6 +61,17 @@ struct SyntaxHighlighter {
             apply("'(?:''|[^'])*'", .systemRed, textStorage, target)
             apply("(?m)--.*$", .secondaryLabelColor, textStorage, target)
             apply("/\\*[\\s\\S]*?\\*/", .secondaryLabelColor, textStorage, target)
+        case .nginx:
+            // Directive position is "first word of a logical line", which after
+            // formatting means first word on the line.
+            apply("(?m)^[ \\t]*[A-Za-z_][\\w.]*", .systemBlue, textStorage, target)
+            apply("\\$\\{?[A-Za-z0-9_]+\\}?", .systemPurple, textStorage, target)
+            apply("(?i)\\b(on|off)\\b", .systemPurple, textStorage, target)
+            // Sizes and times keep their unit suffix (16k, 10m, 30s, 1d).
+            apply("(?<![\\w.$])\\d+[kKmMgGsSmMhHdDwWyY]?(?![\\w.])", .systemOrange, textStorage, target)
+            apply("\"(?:\\\\.|[^\\\\\"])*\"|'(?:\\\\.|[^\\\\'])*'", .systemRed, textStorage, target)
+            // Last, so a '#' inside a directive line wins over everything above.
+            apply("(?m)#.*$", .secondaryLabelColor, textStorage, target)
         case .plainText:
             break
         }

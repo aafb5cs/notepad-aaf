@@ -90,6 +90,7 @@ private struct TabItemView: View {
         case .yaml: return .purple
         case .xml: return .blue
         case .sql: return .teal
+        case .nginx: return .green
         case .plainText: return .secondary
         }
     }

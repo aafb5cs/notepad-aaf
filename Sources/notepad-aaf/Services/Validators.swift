@@ -11,9 +11,18 @@ struct Validators {
             return validateYAML(text)
         case .sql:
             return validateSQL(text)
+        case .nginx:
+            return validateNginx(text)
         case .plainText:
             return .valid
         }
+    }
+
+    /// nginx modules define their own directives, so validation stops at
+    /// structure: balanced braces, `;`-terminated directives, closed quotes.
+    private func validateNginx(_ text: String) -> ValidationStatus {
+        guard let error = NginxFormatter.structuralError(in: text) else { return .valid }
+        return .invalid(message: error.message, line: error.line, column: error.column)
     }
 
     /// SQL dialects differ too much to parse properly, so this only catches the
