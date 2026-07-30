@@ -122,3 +122,10 @@ Sources/notepad-aaf/
 Adding a language means touching `LanguageMode`, `Formatters`, `Validators`,
 `SyntaxHighlighter`, and the small `switch` in `EditorToolbar` / `TabStripView` —
 `NginxFormatter.swift` and its `SelfTest` block are a complete worked example.
+
+## License
+
+[MIT](LICENSE) © 2026 Saif.
+
+The AAF logo and app icon (`Resources/aaf-logo.png`, `Resources/AppIcon.icns`,
+`notepad-aaf.png`) are branding, not code, and are not covered by the MIT grant.
