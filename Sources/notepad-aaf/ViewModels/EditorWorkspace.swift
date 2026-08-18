@@ -123,6 +123,22 @@ final class EditorWorkspace: ObservableObject {
         persistSession()
     }
 
+    /// Move the selection one tab along, wrapping at both ends. The tab strip
+    /// scrolls to follow the selection, so this also walks a strip that's too
+    /// wide to fit the window.
+    func selectNextDocument() { advanceSelection(by: 1) }
+    func selectPreviousDocument() { advanceSelection(by: -1) }
+
+    private func advanceSelection(by delta: Int) {
+        guard !documents.isEmpty else { return }
+        guard let current = documents.firstIndex(where: { $0.id == selectedDocumentID }) else {
+            selectedDocumentID = documents.first?.id
+            return
+        }
+        let next = (current + delta + documents.count) % documents.count
+        selectedDocumentID = documents[next].id
+    }
+
     func closeDocument(_ document: EditorDocument) {
         documents.removeAll { $0.id == document.id }
         if selectedDocumentID == document.id {

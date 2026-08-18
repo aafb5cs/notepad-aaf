@@ -30,6 +30,13 @@ struct NotepadAAFApp: App {
                     if let doc = workspace.selectedDocument { workspace.closeDocument(doc) }
                 }
                 .keyboardShortcut("w", modifiers: .command)
+                Divider()
+                Button("Next Tab") { workspace.selectNextDocument() }
+                    .keyboardShortcut("]", modifiers: [.command, .shift])
+                    .disabled(workspace.documents.count < 2)
+                Button("Previous Tab") { workspace.selectPreviousDocument() }
+                    .keyboardShortcut("[", modifiers: [.command, .shift])
+                    .disabled(workspace.documents.count < 2)
             }
             CommandGroup(after: .textEditing) {
                 Button("Find & Replace…") { workspace.showFindReplace = true }

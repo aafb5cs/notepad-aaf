@@ -14,7 +14,9 @@ Pure Swift + SwiftUI/AppKit. No third-party dependencies.
 ## Features
 
 - **Tabs with session restore** — reopen where you left off, including unsaved
-  scratch buffers.
+  scratch buffers. Double-click the empty space in the tab bar for a new tab;
+  when the tabs outgrow the window the strip scrolls, with arrows at each end
+  and ⌘⇧] / ⌘⇧[ to step through them.
 - **Syntax highlighting** that only re-colors the *visible* region, so multi-MB
   files stay responsive.
 - **Live validation** with the error's line and column, debounced while typing.
@@ -63,6 +65,11 @@ cd notepad-aaf
 swift run                 # debug build, launches the app
 ```
 
+```
+cp -R notepad-aaf.app /Applications/
+./build-app.sh && cp -R notepad-aaf.app /Applications
+```
+
 To produce a double-clickable `notepad-aaf.app` (universal arm64 + x86_64,
 ad-hoc signed for this Mac):
 
@@ -90,6 +97,7 @@ It prints one line per check and exits non-zero on failure.
 | | |
 |---|---|
 | ⌘N / ⌘O / ⌘S / ⌘W | New / Open / Save / Close tab |
+| ⌘⇧] / ⌘⇧[ | Next / previous tab (wraps around) |
 | ⌘F | Find & Replace |
 | ⇧⌘L | Format document |
 | ⇧⌘U / ⌃⌘U | URL decode / encode |

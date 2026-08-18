@@ -42,6 +42,20 @@ enum SelfTest {
             check("json minify single-line", !mini.contains("\n") && mini == "{\"a\":1,\"b\":2}")
         } catch { check("json format threw: \(error)", false) }
 
+        // JSONSerialization escapes '/' unless told not to, which mangles every
+        // URL in a config file.
+        do {
+            let source = "{\"url\":\"https://example.com/a?b=1\",\"win\":\"C:\\\\tmp\\\\x\"}"
+            let pretty = try formatters.format(source, mode: .json, option: .jsonPretty)
+            let mini = try formatters.format(source, mode: .json, option: .jsonMinify)
+            check("json pretty keeps URLs unescaped", pretty.contains("https://example.com/a?b=1"))
+            check("json minify keeps URLs unescaped", mini.contains("https://example.com/a?b=1"))
+            check("json pretty has no escaped slashes", !pretty.contains("\\/"))
+            check("json keeps real backslashes escaped", mini.contains("C:\\\\tmp\\\\x"))
+            check("json round-trips after formatting",
+                  validators.validate(text: pretty, mode: .json).isValid)
+        } catch { check("json slash escaping threw: \(error)", false) }
+
         do {
             let xml = try formatters.format("<root><a>1</a><b>2</b></root>", mode: .xml, option: .xmlPretty)
             check("xml pretty multi-line", xml.contains("\n") && xml.contains("<a>"))
@@ -255,6 +269,73 @@ enum SelfTest {
         check("auto-save takes dirty on-disk files", EditorWorkspace.shouldAutoSave(dirtyFile))
         check("auto-save skips clean files", !EditorWorkspace.shouldAutoSave(cleanFile))
         check("auto-save skips untitled tabs", !EditorWorkspace.shouldAutoSave(dirtyUntitled))
+
+        print("== Tab strip arrows ==")
+        // Geometry only, in the strip's own space: tabs 120 wide in a 300-wide
+        // strip with 26-wide arrows at each end. The strip is scrolled mid-way,
+        // so tab 0 is off the left, tabs 1 and 2 are readable, and tab 3 runs
+        // under the right arrow and off the edge.
+        let gutter: CGFloat = 26
+        let strip: CGFloat = 300
+        let scrolled: [CGRect?] = [
+            CGRect(x: -90, y: 0, width: 120, height: 36),   // off the left
+            CGRect(x: 30, y: 0, width: 120, height: 36),    // in the clear
+            CGRect(x: 150, y: 0, width: 120, height: 36),   // in the clear
+            CGRect(x: 270, y: 0, width: 120, height: 36),   // off the right
+        ]
+        check("left arrow targets the last tab off the left",
+              TabStripGeometry.clippedAtLeading(frames: scrolled, gutter: gutter) == 0)
+        check("right arrow targets the first tab off the right",
+              TabStripGeometry.clippedAtTrailing(frames: scrolled, viewport: strip, gutter: gutter) == 3)
+
+        // Parked at the start: nothing hidden to the left, so that arrow is inert.
+        let atStart: [CGRect?] = [
+            CGRect(x: 26, y: 0, width: 120, height: 36),
+            CGRect(x: 146, y: 0, width: 120, height: 36),
+            CGRect(x: 266, y: 0, width: 120, height: 36),
+        ]
+        check("left arrow inert at the start",
+              TabStripGeometry.clippedAtLeading(frames: atStart, gutter: gutter) == nil)
+        check("right arrow live at the start",
+              TabStripGeometry.clippedAtTrailing(frames: atStart, viewport: strip, gutter: gutter) == 2)
+
+        // Parked at the end: the last tab clears the right arrow, so it is inert.
+        let atEnd: [CGRect?] = [
+            CGRect(x: -126, y: 0, width: 120, height: 36),
+            CGRect(x: -6, y: 0, width: 120, height: 36),
+            CGRect(x: 114, y: 0, width: 120, height: 36),
+        ]
+        check("right arrow inert at the end",
+              TabStripGeometry.clippedAtTrailing(frames: atEnd, viewport: strip, gutter: gutter) == nil)
+        check("left arrow live at the end",
+              TabStripGeometry.clippedAtLeading(frames: atEnd, gutter: gutter) == 1)
+
+        // A tab whose frame hasn't been measured yet must not make an arrow live.
+        check("unmeasured tabs don't arm the arrows",
+              TabStripGeometry.clippedAtLeading(frames: [nil, nil], gutter: gutter) == nil
+              && TabStripGeometry.clippedAtTrailing(frames: [nil, nil], viewport: strip, gutter: gutter) == nil)
+
+        // An anchor of `t` lands a tab of width `w` with its leading edge at
+        // `t * (strip - w)` — so these fractions are what park it beside the
+        // arrow rather than underneath it.
+        let leading = TabStripGeometry.anchorFraction(tabWidth: 120, viewport: strip,
+                                                      gutter: gutter, edge: .leading)
+        let trailing = TabStripGeometry.anchorFraction(tabWidth: 120, viewport: strip,
+                                                       gutter: gutter, edge: .trailing)
+        check("left arrow parks the tab just clear of itself",
+              abs(leading * (strip - 120) - gutter) < 0.001)
+        check("right arrow parks the tab just clear of itself",
+              abs((trailing * (strip - 120) + 120) - (strip - gutter)) < 0.001)
+        check("anchors stay inside 0...1", (0...1).contains(leading) && (0...1).contains(trailing))
+
+        // A tab as wide as the strip has nowhere to sit; the anchor degrades to
+        // the plain edge instead of dividing by (almost) nothing.
+        check("oversized tab clamps to the leading edge",
+              TabStripGeometry.anchorFraction(tabWidth: 400, viewport: strip,
+                                              gutter: gutter, edge: .leading) == 0)
+        check("oversized tab clamps to the trailing edge",
+              TabStripGeometry.anchorFraction(tabWidth: 400, viewport: strip,
+                                              gutter: gutter, edge: .trailing) == 1)
 
         print("== Vim engine ==")
         // Driven against an in-memory buffer, so every command below is checked

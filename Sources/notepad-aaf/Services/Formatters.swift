@@ -54,12 +54,17 @@ struct Formatters {
     private func formatJSON(text: String, option: FormatOption) throws -> String {
         guard let data = text.data(using: .utf8) else { return text }
         let object = try JSONSerialization.jsonObject(with: data)
+        // `\/` is legal JSON but nobody writes URLs that way — without this
+        // option every "https://…" comes back as "https:\/\/…".
         switch option {
         case .jsonMinify:
-            let minData = try JSONSerialization.data(withJSONObject: object, options: [])
+            let minData = try JSONSerialization.data(withJSONObject: object,
+                                                     options: [.withoutEscapingSlashes])
             return String(decoding: minData, as: UTF8.self)
         default:
-            let prettyData = try JSONSerialization.data(withJSONObject: object, options: [.prettyPrinted, .sortedKeys])
+            let prettyData = try JSONSerialization.data(
+                withJSONObject: object,
+                options: [.prettyPrinted, .sortedKeys, .withoutEscapingSlashes])
             return String(decoding: prettyData, as: UTF8.self)
         }
     }
